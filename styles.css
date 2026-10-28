@@ -151,6 +151,20 @@ main {
 	font-weight: 700;
 }
 
+@media (max-width: 1100px) {
+	.home-intro-box,
+	.home-details-box {
+		padding: clamp(0.65rem, 2.5vw, 1rem);
+		border-radius: 0.75rem;
+		background: rgb(255 255 255 / 50%);
+	}
+
+	.home-details-box {
+		width: fit-content;
+		margin-inline: auto;
+	}
+}
+
 .button {
 	display: inline-flex;
 	min-height: 2.75rem;
@@ -489,7 +503,7 @@ textarea {
 	padding: clamp(0.4rem, 2vw, 0.75rem);
 	border: 1px solid #ffc907;
 	border-radius: 6px;
-	background: rgb(255 255 255 / 82%);
+	background: rgb(255 201 7 / 30%);
 }
 
 .status-label {
@@ -557,24 +571,40 @@ textarea {
 
 .piece-shape.straight,
 .placed-pipe.straight {
-	background-image: url("img/pipes/pipe_straight.png");
+	background-image: url("img/pipes/sprites/straight_dry.png");
 	transform: rotate(calc(var(--pipe-rotation) + 90deg));
 }
 
 .piece-shape.elbow,
 .placed-pipe.elbow {
-	background-image: url("img/pipes/pipe_elbow.png");
+	background-image: url("img/pipes/sprites/elbow_dry_a.png");
 	transform: rotate(calc(var(--pipe-rotation) + 180deg));
 }
 
 .piece-shape.tee,
 .placed-pipe.tee {
-	background-image: url("img/pipes/pipe_tee.png");
+	background-image: url("img/pipes/sprites/tee_dry_a.png");
 }
 
 .piece-shape.cross,
 .placed-pipe.cross {
-	background-image: url("img/pipes/pipe_cross.png");
+	background-image: url("img/pipes/sprites/cross_dry_a.png");
+}
+
+.board-cell.flowing .placed-pipe.straight {
+	background-image: url("img/pipes/sprites/straight_flowing.png");
+}
+
+.board-cell.flowing .placed-pipe.elbow {
+	background-image: url("img/pipes/sprites/elbow_flowing_a.png");
+}
+
+.board-cell.flowing .placed-pipe.tee {
+	background-image: url("img/pipes/sprites/tee_flowing_a.png");
+}
+
+.board-cell.flowing .placed-pipe.cross {
+	background-image: url("img/pipes/sprites/cross_flowing_a.png");
 }
 
 .piece-shape.tee,
@@ -676,21 +706,9 @@ textarea {
 	padding: 0.35rem 0.65rem;
 	border: 1px solid #ffc907;
 	border-radius: 6px;
-	background: rgb(255 255 255 / 88%);
+	background: #ffc907(255 255 255 / 60%);
 }
 
-.legend-dot {
-	display: inline-block;
-	width: 0.65rem;
-	height: 0.65rem;
-	flex: 0 0 auto;
-	border-radius: 50%;
-	background: #2e9df7;
-}
-
-.city-dot {
-	background: #ff902a;
-}
 
 .overlay {
 	position: fixed;
@@ -711,7 +729,7 @@ textarea {
 	padding: 2rem;
 	border: 1px solid #b8cbc8;
 	border-radius: 6px;
-	background: #fff;
+	background: rgb(255 201 7 / 70%);
 }
 
 .overlay-close {
@@ -946,8 +964,7 @@ textarea {
 	}
 }
 
-.game-screen,
-.game-screen * {
+body * {
 	color: #000;
 	text-shadow: 0 1px 3px #ffc907;
 }

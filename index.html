@@ -19,14 +19,16 @@
         <main>
             <section class="home-screen" id="home-screen">
                 <div class="home-copy">
-                    <p class="intro-copy">Connect every pipe from the source to Charity City. One good turn can change a whole neighborhood.</p>
+                    <div class="home-intro-box">
+                        <p class="intro-copy">Connect every pipe from the source to Charity City. One good turn can change a whole neighborhood.</p>
+                    </div>
 
                     <div class="home-actions">
                         <button class="button button-primary" id="start-button" type="button">Start New Game</button>
                         <button class="button button-text hidden" id="continue-button" type="button">Continue current game</button>
                         <button class="button button-text hidden" id="restart-button" type="button">Restart current game</button>
                     </div>
-                    <div class="home-details">
+                    <div class="home-details home-details-box">
                         <span>21 levels</span>
                         <span>One city at a time</span>
                         <span>Every connection counts</span>
@@ -57,8 +59,8 @@
             <section class="game-screen hidden" id="game-screen" aria-label="Pipeline game">
                 <div class="game-heading">
                     <div>
-                        <p class="eyebrow" id="campaign-label">THE POOL · EASY DIFFICULTY</p>
-                        <h1 id="level-title">Level 01 <span>·</span> Main Street</h1>
+                        <p class="eyebrow" id="campaign-label">THE POOL</p>
+                        <h1 id="level-title">Level 1 <span>·</span> Main Street</h1>
                     </div>
                     <p class="game-prompt" id="game-prompt">Turn the piece, then place it where the water can flow.</p>
                 </div>
@@ -85,11 +87,6 @@
                     </section>
                 </div>
 
-                <div class="board-legend" aria-label="Board legend">
-                    <span><i class="legend-dot water-dot"></i> Water source</span>
-                    <span><i class="legend-dot city-dot"></i> Charity City</span>
-                </div>
-
                 <div class="game-layout">
                     <section class="board-panel" aria-label="Pipeline board">
                         <div class="board-wrap">
@@ -104,7 +101,7 @@
         </main>
 
         <footer class="site-footer">
-            <span>CHARITY CITY PIPELINE</span>
+            <span>CHARITY CITY PIPELINE x </span>
             <img class="footer-logo" src="img/cw_logo_horizontal.png" alt="charity: water">
         </footer>
     </div>
