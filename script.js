@@ -23,34 +23,34 @@ const baseConnections = {
 	cross: ['N', 'E', 'S', 'W']
 };
 const storageKey = 'charity-city-pipeline-save';
-const obstacleImagesBySize = {
-	'1x1': [
-		'boulder_small.png',
-		'fallen_log.png',
-		'mud_puddle.png',
-		'thorn_bush_small.png'
-	],
-	'2x1': [
-		'boulder_cluster.png',
-		'cones_and_blocks.png',
-		'construction_barricade.png',
-		'exposed_roots.png',
-		'fallen_branches.png',
-		'landslide_large.png',
-		'mud_trench.png',
-		'pipe_blocked.png',
-		'pipe_leak.png',
-		'rocky_water_crossing.png',
-		'thorn_bush_large.png'
-	],
-	'3x1': [
-		'pipe_debris.png',
-		'rubble_low.png',
-		'tree_stump.png',
-		'water_puddle.png'
-	],
-	'4x1': ['pipe_mossy.png']
+const cityEndpointImages = {
+	'The Pool': 'img/Tropical Village Fountain Playground.png',
+	'The Spring': 'img/spring.png',
+	'The Well': 'img/well.png'
 };
+const startPointImage = 'img/start_well.png';
+const obstacleImages = [
+	'boulder_cluster.png',
+	'boulder_small.png',
+	'cones_and_blocks.png',
+	'construction_barricade.png',
+	'exposed_roots.png',
+	'fallen_branches.png',
+	'fallen_log.png',
+	'landslide_large.png',
+	'mud_puddle.png',
+	'mud_trench.png',
+	'pipe_blocked.png',
+	'pipe_debris.png',
+	'pipe_leak.png',
+	'pipe_mossy.png',
+	'rocky_water_crossing.png',
+	'rubble_low.png',
+	'thorn_bush_large.png',
+	'thorn_bush_small.png',
+	'tree_stump.png',
+	'water_puddle.png'
+];
 const homeScreen = document.querySelector('#home-screen');
 const gameScreen = document.querySelector('#game-screen');
 const gameBoard = document.querySelector('#game-board');
@@ -111,7 +111,7 @@ function getEndpointRows(level) {
 	return { sourceRow, cityRow };
 }
 
-// Place a growing number of differently sized obstacles away from the route.
+// Place one obstacle per level, keeping the route and placed pipes clear.
 function makeObstacleCells(level, occupiedCells = []) {
 	if (level < 2) {
 		return [];
@@ -121,57 +121,24 @@ function makeObstacleCells(level, occupiedCells = []) {
 	const boardSize = getBoardSize(level);
 	const unavailableCells = new Set(occupiedCells);
 	getRoutePositions(level).forEach(([row, column]) => unavailableCells.add(row * boardSize + column));
-	const availableSizes = [{ width: 1, height: 1 }, { width: 2, height: 1 }];
-	if (level >= 5) {
-		availableSizes.push({ width: 3, height: 1 });
-	}
-	if (level >= 7) {
-		availableSizes.push({ width: 4, height: 1 });
-	}
-
-	const obstacles = [];
-	for (let index = 0; index < obstacleCount; index += 1) {
-		const preferredSizeIndex = (level - 2 + index) % availableSizes.length;
-		let placedObstacle = null;
-
-		for (let offset = 0; offset < availableSizes.length && !placedObstacle; offset += 1) {
-			const sizeIndex = (preferredSizeIndex + offset) % availableSizes.length;
-			const size = availableSizes[sizeIndex];
-			const matchingImages = obstacleImagesBySize[`${size.width}x${size.height}`];
-			if (!matchingImages) {
-				continue;
-			}
-			const placements = [];
-
-			for (let row = 0; row <= boardSize - size.height; row += 1) {
-				for (let column = 0; column <= boardSize - size.width; column += 1) {
-					const cells = [];
-					for (let rowOffset = 0; rowOffset < size.height; rowOffset += 1) {
-						for (let columnOffset = 0; columnOffset < size.width; columnOffset += 1) {
-							cells.push((row + rowOffset) * boardSize + column + columnOffset);
-						}
-					}
-
-					if (cells.every((cellIndex) => !unavailableCells.has(cellIndex))) {
-						placements.push({ row, column, cells, ...size });
-					}
-				}
-			}
-
-			if (placements.length > 0) {
-				const placementIndex = Math.floor((index + 1) * placements.length / (obstacleCount + 1));
-				placedObstacle = {
-					...placements[placementIndex],
-					image: matchingImages[(level + index - 2) % matchingImages.length]
-				};
-				placedObstacle.cells.forEach((cellIndex) => unavailableCells.add(cellIndex));
-				delete placedObstacle.cells;
-				obstacles.push(placedObstacle);
-			}
+	const availableCells = [];
+	for (let cellIndex = 0; cellIndex < boardSize * boardSize; cellIndex += 1) {
+		if (!unavailableCells.has(cellIndex)) {
+			availableCells.push(cellIndex);
 		}
 	}
 
-	return obstacles;
+	return Array.from({ length: Math.min(obstacleCount, availableCells.length) }, (_, index) => {
+		const placementIndex = Math.floor((index + 1) * availableCells.length / (obstacleCount + 1));
+		const cellIndex = availableCells[placementIndex];
+		return {
+			row: Math.floor(cellIndex / boardSize),
+			column: cellIndex % boardSize,
+			width: 1,
+			height: 1,
+			image: obstacleImages[(level + index - 2) % obstacleImages.length]
+		};
+	});
 }
 
 function getObstacleCellIndices(obstacles = state.obstacles, boardSize = state.boardSize) {
@@ -188,7 +155,7 @@ function getObstacleCellIndices(obstacles = state.obstacles, boardSize = state.b
 	return cells;
 }
 
-function makePiece(level, pieceIndex) {
+function makePiece(level, pieceIndex, recentPieceTypes = []) {
 	const availableTypes = ['straight', 'elbow'];
 	if (level >= 3) {
 		availableTypes.push('tee');
@@ -197,9 +164,16 @@ function makePiece(level, pieceIndex) {
 		availableTypes.push('cross');
 	}
 
+	const lastThreeTypes = recentPieceTypes.slice(-3);
+	const repeatsThreeTimes = lastThreeTypes.length === 3
+		&& lastThreeTypes.every((type) => type === lastThreeTypes[0]);
+	const nextTypes = repeatsThreeTimes
+		? availableTypes.filter((type) => type !== lastThreeTypes[0])
+		: availableTypes;
+
 	return {
 		id: `level-${level}-piece-${pieceIndex}`,
-		type: availableTypes[Math.floor(Math.random() * availableTypes.length)],
+		type: nextTypes[Math.floor(Math.random() * nextTypes.length)],
 		rotation: Math.floor(Math.random() * 4)
 	};
 }
@@ -233,6 +207,7 @@ function createNewGame(mode) {
 		board: [],
 		pieceIndex: 0,
 		currentPiece: null,
+		recentPieceTypes: [],
 		pendingPiece: false,
 		rewardedPieceIds: [],
 		active: true
@@ -246,9 +221,11 @@ function startLevel() {
 	state.obstacles = makeObstacleCells(state.level);
 	state.board = Array(state.boardSize * state.boardSize).fill(null);
 	state.pieceIndex = 0;
-	state.currentPiece = makePiece(state.level, state.pieceIndex);
+	state.recentPieceTypes = [];
+	state.currentPiece = makePiece(state.level, state.pieceIndex, state.recentPieceTypes);
+	state.recentPieceTypes.push(state.currentPiece.type);
 	state.pendingPiece = false;
-	state.timeLeft = Math.max(60, 120 - (state.level - 1) * 10);
+	state.timeLeft = getLevelTimeLimit(state.level);
 	state.active = true;
 	showGame();
 	renderGame();
@@ -338,6 +315,21 @@ function getStageName(level) {
 	return 'The Well';
 }
 
+function getLevelTimeLimit(level) {
+	const stageTimeBonuses = {
+		'The Pool': 10,
+		'The Spring': 15,
+		'The Well': 20
+	};
+	let timeLimit = 120;
+
+	for (let levelNumber = 2; levelNumber <= level; levelNumber += 1) {
+		timeLimit += stageTimeBonuses[getStageName(levelNumber)];
+	}
+
+	return timeLimit;
+}
+
 function getStageDifficulty(level) {
 	if (level <= 7) {
 		return 'Easy';
@@ -357,11 +349,20 @@ function renderBoard() {
 	}));
 	const obstacleCells = getObstacleCellIndices(state.obstacles || [], boardSize);
 	gameBoard.innerHTML = '';
-	boardWrap.style.setProperty('--source-position', `${((sourceRow + 0.5) / boardSize) * 100}%`);
-	boardWrap.style.setProperty('--city-position', `${((cityRow + 0.5) / boardSize) * 100}%`);
+	boardWrap.style.aspectRatio = `${boardSize + 2} / ${boardSize}`;
+	boardWrap.style.maxWidth = `${34 * (boardSize + 2) / boardSize}rem`;
+	boardWrap.style.gridTemplateColumns = `repeat(${boardSize + 2}, minmax(0, 1fr))`;
+	boardWrap.style.gridTemplateRows = `repeat(${boardSize}, minmax(0, 1fr))`;
+	gameBoard.style.gridColumn = `2 / span ${boardSize}`;
+	gameBoard.style.gridRow = `1 / span ${boardSize}`;
 	gameBoard.style.gridTemplateColumns = `repeat(${boardSize}, minmax(0, 1fr))`;
 	gameBoard.style.gridTemplateRows = `repeat(${boardSize}, minmax(0, 1fr))`;
 	gameBoard.setAttribute('aria-label', `${boardSize} by ${boardSize} pipe grid`);
+	document.querySelector('.source-marker .endpoint-image').src = startPointImage;
+	document.querySelector('.city-marker .endpoint-image').src = cityEndpointImages[getStageName(state.level)];
+	document.querySelector('.source-marker').style.gridRow = `${sourceRow + 1}`;
+	document.querySelector('.city-marker').style.gridColumn = `${boardSize + 2}`;
+	document.querySelector('.city-marker').style.gridRow = `${cityRow + 1}`;
 
 	for (let cellIndex = 0; cellIndex < state.board.length; cellIndex += 1) {
 		const obstacle = obstaclesByAnchor.get(cellIndex);
@@ -579,7 +580,9 @@ function continueToNextPiece() {
 		return;
 	}
 
-	state.currentPiece = makePiece(state.level, state.pieceIndex);
+	state.currentPiece = makePiece(state.level, state.pieceIndex, state.recentPieceTypes);
+	state.recentPieceTypes.push(state.currentPiece.type);
+	state.recentPieceTypes = state.recentPieceTypes.slice(-3);
 	renderGame();
 	saveGame();
 }
@@ -814,14 +817,26 @@ function resumeSavedGame() {
 	state.boardSize = state.boardSize || getBoardSize(state.level);
 	state.pieceIndex = Math.max(state.pieceIndex || 0, state.route ? state.route.length : 0);
 	delete state.route;
+	if (!Array.isArray(state.recentPieceTypes)) {
+		const previousPieces = state.board
+			.filter(Boolean)
+			.sort((first, second) => {
+				const firstIndex = Number(first.id.match(/piece-(\d+)$/)?.[1] || 0);
+				const secondIndex = Number(second.id.match(/piece-(\d+)$/)?.[1] || 0);
+				return firstIndex - secondIndex;
+			});
+		if (state.currentPiece && !previousPieces.some((piece) => piece.id === state.currentPiece.id)) {
+			previousPieces.push(state.currentPiece);
+		}
+		state.recentPieceTypes = previousPieces.slice(-3).map((piece) => piece.type);
+	}
 	if (!state.obstacles || !state.obstacles.every((obstacle) => typeof obstacle === 'object')) {
 		const occupiedCells = state.board.flatMap((piece, index) => piece ? [index] : []);
 		state.obstacles = makeObstacleCells(state.level, occupiedCells);
 	}
-	const hasMismatchedObstacleSize = state.obstacles.some((obstacle) => {
-		return !obstacleImagesBySize[`${obstacle.width}x${obstacle.height}`]?.includes(obstacle.image);
-	});
-	if (hasMismatchedObstacleSize) {
+	const hasOutdatedObstacleLayout = state.obstacles.length !== (state.level < 2 ? 0 : state.level)
+		|| state.obstacles.some((obstacle) => obstacle.width !== 1 || obstacle.height !== 1);
+	if (hasOutdatedObstacleLayout) {
 		const occupiedCells = state.board.flatMap((piece, index) => piece ? [index] : []);
 		state.obstacles = makeObstacleCells(state.level, occupiedCells);
 	}
