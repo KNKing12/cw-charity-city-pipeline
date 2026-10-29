@@ -6,6 +6,6 @@ This first version should focus on core functionality — clickable elements, sc
 
 Each level supplies new pipe pieces until water reaches Charity City, the flow is blocked, or every open board space is filled.
 
-The game uses the pipe and obstacle sprites extracted under `img/pipes/` and `img/obstacles/`. Each level places one obstacle per level from level 2 onward; each obstacle blocks one board cell while its sprite scales to fit. Home and game backgrounds stay fixed inside a 7px viewport inset and stretch to fill it on all screen sizes, preserving the yellow 7px frame on every side.
+Pipe segments are drawn from their directional connections, and obstacle sprites are stored under `img/obstacles/`. Each level places one obstacle per level from level 2 onward; each obstacle blocks one board cell while its sprite scales to fit. Home and game backgrounds stay fixed inside a 7px viewport inset and stretch to fill it on all screen sizes, preserving the yellow 7px frame on every side.
 
 The 21 levels are grouped by difficulty: levels 1–7 are The Pool (easy), levels 8–14 are The Spring (medium), and levels 15–21 are The Well (hard).

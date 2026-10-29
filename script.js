@@ -22,6 +22,12 @@ const baseConnections = {
 	tee: ['N', 'E', 'W'],
 	cross: ['N', 'E', 'S', 'W']
 };
+const pipePathByDirection = {
+	N: 'M 50 50 V 0',
+	E: 'M 50 50 H 100',
+	S: 'M 50 50 V 100',
+	W: 'M 50 50 H 0'
+};
 const storageKey = 'charity-city-pipeline-save';
 const cityEndpointImages = {
 	'The Pool': 'img/Tropical Village Fountain Playground.png',
@@ -195,6 +201,20 @@ function getCurrentConnections(piece) {
 	}
 
 	return connections;
+}
+
+function getPipeSvgMarkup(piece) {
+	const pipePath = getCurrentConnections(piece)
+		.map((direction) => pipePathByDirection[direction])
+		.join(' ');
+
+	return `
+		<svg class="pipe-art" viewBox="0 0 100 100" aria-hidden="true">
+			<path class="pipe-outline" d="${pipePath}"></path>
+			<path class="pipe-metal" d="${pipePath}"></path>
+			<path class="pipe-interior" d="${pipePath}"></path>
+			<path class="pipe-highlight" d="${pipePath}"></path>
+		</svg>`;
 }
 
 function createNewGame(mode) {
@@ -390,7 +410,10 @@ function renderBoard() {
 			if (flowingCells.has(cellIndex)) {
 				cell.classList.add('flowing');
 			}
-			cell.innerHTML = `<span class="placed-pipe ${piece.type}" style="--pipe-rotation: ${piece.rotation * 90}deg" aria-label="${piece.type} pipe"></span>`;
+			cell.innerHTML = `
+				<span class="placed-pipe ${piece.type}" role="img" aria-label="${piece.type} pipe">
+					${getPipeSvgMarkup(piece)}
+				</span>`;
 		} else {
 			cell.innerHTML = `<button class="place-button" type="button" data-cell="${cellIndex}" aria-label="Place pipe in row ${row + 1}, column ${column + 1}"><span aria-hidden="true">+</span></button>`;
 		}
@@ -491,8 +514,8 @@ function renderPreview() {
 		return;
 	}
 
-	previewShape.className = `piece-shape ${state.currentPiece.type}`;
-	previewShape.style.setProperty('--pipe-rotation', `${state.currentPiece.rotation * 90}deg`);
+	previewShape.className = 'piece-shape';
+	previewShape.innerHTML = getPipeSvgMarkup(state.currentPiece);
 	const pieceDetails = {
 		straight: 'Straight pipe · 12 pts',
 		elbow: 'Elbow pipe · 20 pts',
