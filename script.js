@@ -45,6 +45,16 @@ const boardBackgroundImages = {
 	'The Spring': 'img/group_backgrounds/the_spring_background.png',
 	'The Well': 'img/group_backgrounds/the_well_background.png'
 };
+const quickSoundThresholds = {
+	'The Pool': 30,
+	'The Spring': 40,
+	'The Well': 50
+};
+const stageSoundFiles = {
+	'The Pool': 'pool.mp3',
+	'The Spring': 'spring.mp3',
+	'The Well': 'well.mp3'
+};
 const startPointImage = 'img/start_well.png';
 const obstacleImages = [
 	'boulder_cluster.png',
@@ -90,6 +100,10 @@ let selectedMode = 'timed';
 let timerInterval = null;
 let toastTimeout = null;
 let soundOn = true;
+let audioContext = null;
+let gameStartAudio = null;
+let quickAudio = null;
+const stageAudios = {};
 
 function getRoutePositions(level) {
 	const boardSize = getBoardSize(level);
@@ -225,6 +239,7 @@ function getPipeImageMarkup(piece, isFlowing = false) {
 
 function createNewGame(mode) {
 	selectedMode = mode;
+	playGameStartSound();
 	state = {
 		mode,
 		level: 1,
@@ -560,6 +575,7 @@ function moveLastPiece() {
 
 	state.board[cellIndex] = null;
 	state.pendingPiece = false;
+	playMoveSound();
 	renderGame();
 	saveGame();
 	showToast('Piece moved back. Choose a new place.');
@@ -599,6 +615,7 @@ function continueToNextPiece() {
 		return;
 	}
 
+	playLockSound();
 	state.pieceIndex += 1;
 	state.pendingPiece = false;
 	const flowingCells = getFlowingCells();
@@ -628,7 +645,12 @@ function completeLevel() {
 	clearInterval(timerInterval);
 	state.active = false;
 	localStorage.removeItem(storageKey);
-	playWaterSound();
+	if (state.mode === 'timed' && state.timeLeft > quickSoundThresholds[getStageName(state.level)]) {
+		playQuickSound();
+	} else {
+		playWaterSound();
+	}
+	playStageSound(state.level);
 
 	if (state.level === 21) {
 		showCampaignComplete();
@@ -673,6 +695,7 @@ function endGame(message) {
 	clearInterval(timerInterval);
 	state.active = false;
 	localStorage.removeItem(storageKey);
+	playGameOverSound();
 	showOverlay({
 		kind: 'game-over',
 		symbol: '',
@@ -742,27 +765,100 @@ function playTone(frequency, duration) {
 		return;
 	}
 
-	const audio = new AudioContext();
-	const oscillator = audio.createOscillator();
-	const volume = audio.createGain();
+	const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+	if (!AudioContextConstructor) {
+		return;
+	}
+
+	// Create audio only after a player interacts, so browsers allow it to play.
+	if (!audioContext) {
+		audioContext = new AudioContextConstructor();
+	}
+	if (audioContext.state === 'suspended') {
+		audioContext.resume();
+	}
+
+	const oscillator = audioContext.createOscillator();
+	const volume = audioContext.createGain();
 	oscillator.frequency.value = frequency;
 	oscillator.type = 'sine';
-	volume.gain.setValueAtTime(0.06, audio.currentTime);
-	volume.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + duration);
+	volume.gain.setValueAtTime(0.06, audioContext.currentTime);
+	volume.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
 	oscillator.connect(volume);
-	volume.connect(audio.destination);
+	volume.connect(audioContext.destination);
 	oscillator.start();
-	oscillator.stop(audio.currentTime + duration);
-	oscillator.onended = () => audio.close();
+	oscillator.stop(audioContext.currentTime + duration);
 }
 
 function playPipeSound() {
 	playTone(210, 0.12);
 }
 
+function playTurnSound() {
+	playTone(330, 0.08);
+}
+
+function playMoveSound() {
+	playTone(260, 0.12);
+}
+
+function playLockSound() {
+	playTone(330, 0.1);
+	playTone(440, 0.14);
+}
+
 function playWaterSound() {
 	playTone(440, 0.5);
 	setTimeout(() => playTone(660, 0.45), 160);
+}
+
+function playQuickSound() {
+	if (!soundOn) {
+		return;
+	}
+
+	if (!quickAudio) {
+		quickAudio = new Audio('Sound FX/quick.mp3');
+	}
+	quickAudio.currentTime = 0;
+	quickAudio.play().catch((error) => {
+		console.error('Unable to play the quick sound effect:', error);
+	});
+}
+
+function playStageSound(level) {
+	if (!soundOn) {
+		return;
+	}
+
+	const stageName = getStageName(level);
+	if (!stageAudios[stageName]) {
+		stageAudios[stageName] = new Audio(`Sound FX/${stageSoundFiles[stageName]}`);
+	}
+	const audio = stageAudios[stageName];
+	audio.currentTime = 0;
+	audio.play().catch((error) => {
+		console.error(`Unable to play the ${stageName} sound effect:`, error);
+	});
+}
+
+function playGameStartSound() {
+	if (!soundOn) {
+		return;
+	}
+
+	if (!gameStartAudio) {
+		gameStartAudio = new Audio('Sound FX/game_start.mp3');
+	}
+	gameStartAudio.currentTime = 0;
+	gameStartAudio.play().catch((error) => {
+		console.error('Unable to play the game start sound effect:', error);
+	});
+}
+
+function playGameOverSound() {
+	playTone(300, 0.18);
+	setTimeout(() => playTone(220, 0.25), 140);
 }
 
 function saveSuccessCard() {
@@ -844,6 +940,7 @@ function resumeSavedGame() {
 		return;
 	}
 
+	playGameStartSound();
 	state = savedGame;
 	state.boardSize = state.boardSize || getBoardSize(state.level);
 	state.pieceIndex = Math.max(state.pieceIndex || 0, state.route ? state.route.length : 0);
@@ -892,6 +989,7 @@ piecePreviewButton.addEventListener('click', () => {
 		return;
 	}
 	state.currentPiece.rotation = (state.currentPiece.rotation + 1) % 4;
+	playTurnSound();
 	renderPreview();
 });
 movePieceButton.addEventListener('click', moveLastPiece);
