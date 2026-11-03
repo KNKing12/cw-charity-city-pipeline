@@ -100,9 +100,10 @@ let selectedMode = 'timed';
 let timerInterval = null;
 let toastTimeout = null;
 let soundOn = true;
-let audioContext = null;
 let gameStartAudio = null;
 let quickAudio = null;
+let pipeAudio = null;
+let switchAudio = null;
 const stageAudios = {};
 
 function getRoutePositions(level) {
@@ -575,7 +576,6 @@ function moveLastPiece() {
 
 	state.board[cellIndex] = null;
 	state.pendingPiece = false;
-	playMoveSound();
 	renderGame();
 	saveGame();
 	showToast('Piece moved back. Choose a new place.');
@@ -588,7 +588,7 @@ function placeCurrentPiece(cellIndex) {
 
 	state.board[cellIndex] = { ...state.currentPiece };
 	state.pendingPiece = true;
-	playPipeSound();
+	const pipeSoundPlayback = playPipeSound();
 
 	const flowingCells = getFlowingCells();
 	const placedPiece = state.board[cellIndex];
@@ -606,7 +606,7 @@ function placeCurrentPiece(cellIndex) {
 	saveGame();
 
 	if (hasReachedCity(flowingCells)) {
-		completeLevel();
+		completeLevel(pipeSoundPlayback);
 	}
 }
 
@@ -615,7 +615,6 @@ function continueToNextPiece() {
 		return;
 	}
 
-	playLockSound();
 	state.pieceIndex += 1;
 	state.pendingPiece = false;
 	const flowingCells = getFlowingCells();
@@ -635,7 +634,7 @@ function continueToNextPiece() {
 	saveGame();
 }
 
-function completeLevel() {
+function completeLevel(pipeSoundPlayback = Promise.resolve()) {
 	if (state.mode === 'timed') {
 		const bonus = state.timeLeft * 3;
 		state.score += bonus;
@@ -645,12 +644,13 @@ function completeLevel() {
 	clearInterval(timerInterval);
 	state.active = false;
 	localStorage.removeItem(storageKey);
-	if (state.mode === 'timed' && state.timeLeft > quickSoundThresholds[getStageName(state.level)]) {
-		playQuickSound();
-	} else {
-		playWaterSound();
-	}
-	playStageSound(state.level);
+	const completedLevel = state.level;
+	const playQuickSoundForLevel = state.mode === 'timed'
+		&& state.timeLeft > quickSoundThresholds[getStageName(completedLevel)];
+	pipeSoundPlayback.then(() => {
+		const quickSoundPlayback = playQuickSoundForLevel ? playQuickSound() : Promise.resolve();
+		quickSoundPlayback.then(() => playStageSound(completedLevel));
+	});
 
 	if (state.level === 21) {
 		showCampaignComplete();
@@ -695,7 +695,6 @@ function endGame(message) {
 	clearInterval(timerInterval);
 	state.active = false;
 	localStorage.removeItem(storageKey);
-	playGameOverSound();
 	showOverlay({
 		kind: 'game-over',
 		symbol: '',
@@ -760,85 +759,64 @@ function showToast(message) {
 	toastTimeout = setTimeout(() => toast.classList.remove('visible'), 1800);
 }
 
-function playTone(frequency, duration) {
-	if (!soundOn) {
-		return;
-	}
-
-	const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
-	if (!AudioContextConstructor) {
-		return;
-	}
-
-	// Create audio only after a player interacts, so browsers allow it to play.
-	if (!audioContext) {
-		audioContext = new AudioContextConstructor();
-	}
-	if (audioContext.state === 'suspended') {
-		audioContext.resume();
-	}
-
-	const oscillator = audioContext.createOscillator();
-	const volume = audioContext.createGain();
-	oscillator.frequency.value = frequency;
-	oscillator.type = 'sine';
-	volume.gain.setValueAtTime(0.06, audioContext.currentTime);
-	volume.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
-	oscillator.connect(volume);
-	volume.connect(audioContext.destination);
-	oscillator.start();
-	oscillator.stop(audioContext.currentTime + duration);
-}
-
 function playPipeSound() {
-	playTone(210, 0.12);
+	if (!soundOn) {
+		return Promise.resolve();
+	}
+
+	if (!pipeAudio) {
+		pipeAudio = new Audio('Sound FX/pipe.wav');
+	}
+	return playSoundFile(pipeAudio, 'Unable to play the pipe sound effect:');
 }
 
-function playTurnSound() {
-	playTone(330, 0.08);
-}
+function playSwitchSound() {
+	if (!soundOn) {
+		return Promise.resolve();
+	}
 
-function playMoveSound() {
-	playTone(260, 0.12);
-}
-
-function playLockSound() {
-	playTone(330, 0.1);
-	playTone(440, 0.14);
-}
-
-function playWaterSound() {
-	playTone(440, 0.5);
-	setTimeout(() => playTone(660, 0.45), 160);
+	if (!switchAudio) {
+		switchAudio = new Audio('Sound FX/switch.mp3');
+	}
+	return playSoundFile(switchAudio, 'Unable to play the switch sound effect:');
 }
 
 function playQuickSound() {
 	if (!soundOn) {
-		return;
+		return Promise.resolve();
 	}
 
 	if (!quickAudio) {
 		quickAudio = new Audio('Sound FX/quick.mp3');
 	}
-	quickAudio.currentTime = 0;
-	quickAudio.play().catch((error) => {
-		console.error('Unable to play the quick sound effect:', error);
-	});
+	return playSoundFile(quickAudio, 'Unable to play the quick sound effect:');
 }
 
 function playStageSound(level) {
 	if (!soundOn) {
-		return;
+		return Promise.resolve();
 	}
 
 	const stageName = getStageName(level);
 	if (!stageAudios[stageName]) {
 		stageAudios[stageName] = new Audio(`Sound FX/${stageSoundFiles[stageName]}`);
 	}
-	const audio = stageAudios[stageName];
+	return playSoundFile(stageAudios[stageName], `Unable to play the ${stageName} sound effect:`);
+}
+
+function playSoundFile(audio, errorMessage) {
 	audio.currentTime = 0;
-	audio.play().catch((error) => {
-		console.error(`Unable to play the ${stageName} sound effect:`, error);
+	return new Promise((resolve) => {
+		const finishPlayback = () => {
+			audio.removeEventListener('ended', finishPlayback);
+			resolve();
+		};
+		audio.addEventListener('ended', finishPlayback, { once: true });
+		audio.play().catch((error) => {
+			audio.removeEventListener('ended', finishPlayback);
+			console.error(errorMessage, error);
+			resolve();
+		});
 	});
 }
 
@@ -854,11 +832,6 @@ function playGameStartSound() {
 	gameStartAudio.play().catch((error) => {
 		console.error('Unable to play the game start sound effect:', error);
 	});
-}
-
-function playGameOverSound() {
-	playTone(300, 0.18);
-	setTimeout(() => playTone(220, 0.25), 140);
 }
 
 function saveSuccessCard() {
@@ -989,7 +962,7 @@ piecePreviewButton.addEventListener('click', () => {
 		return;
 	}
 	state.currentPiece.rotation = (state.currentPiece.rotation + 1) % 4;
-	playTurnSound();
+	playSwitchSound();
 	renderPreview();
 });
 movePieceButton.addEventListener('click', moveLastPiece);
