@@ -100,6 +100,7 @@ let selectedMode = 'timed';
 let timerInterval = null;
 let toastTimeout = null;
 let soundOn = true;
+let backgroundAudio = null;
 let gameStartAudio = null;
 let quickAudio = null;
 let pipeAudio = null;
@@ -295,6 +296,7 @@ function showGame() {
 	document.body.classList.add('game-active');
 	homeScreen.classList.add('hidden');
 	gameScreen.classList.remove('hidden');
+	playBackgroundMusic();
 }
 
 function showHome() {
@@ -759,13 +761,19 @@ function showToast(message) {
 	toastTimeout = setTimeout(() => toast.classList.remove('visible'), 1800);
 }
 
+function createSoundEffectAudio(source) {
+	const audio = new Audio(source);
+	audio.volume = 0.75;
+	return audio;
+}
+
 function playPipeSound() {
 	if (!soundOn) {
 		return Promise.resolve();
 	}
 
 	if (!pipeAudio) {
-		pipeAudio = new Audio('Sound FX/pipe.wav');
+		pipeAudio = createSoundEffectAudio('Sound FX/pipe.wav');
 	}
 	return playSoundFile(pipeAudio, 'Unable to play the pipe sound effect:');
 }
@@ -776,7 +784,7 @@ function playSwitchSound() {
 	}
 
 	if (!switchAudio) {
-		switchAudio = new Audio('Sound FX/switch.mp3');
+		switchAudio = createSoundEffectAudio('Sound FX/switch.mp3');
 	}
 	return playSoundFile(switchAudio, 'Unable to play the switch sound effect:');
 }
@@ -787,7 +795,7 @@ function playQuickSound() {
 	}
 
 	if (!quickAudio) {
-		quickAudio = new Audio('Sound FX/quick.mp3');
+		quickAudio = createSoundEffectAudio('Sound FX/quick.mp3');
 	}
 	return playSoundFile(quickAudio, 'Unable to play the quick sound effect:');
 }
@@ -799,7 +807,7 @@ function playStageSound(level) {
 
 	const stageName = getStageName(level);
 	if (!stageAudios[stageName]) {
-		stageAudios[stageName] = new Audio(`Sound FX/${stageSoundFiles[stageName]}`);
+		stageAudios[stageName] = createSoundEffectAudio(`Sound FX/${stageSoundFiles[stageName]}`);
 	}
 	return playSoundFile(stageAudios[stageName], `Unable to play the ${stageName} sound effect:`);
 }
@@ -820,13 +828,40 @@ function playSoundFile(audio, errorMessage) {
 	});
 }
 
+function playBackgroundMusic() {
+	if (!soundOn) {
+		return;
+	}
+
+	if (!backgroundAudio) {
+		backgroundAudio = new Audio('Sound FX/long.mp3');
+		backgroundAudio.volume = 0.5;
+		backgroundAudio.loop = true;
+	}
+	if (!backgroundAudio.paused) {
+		return;
+	}
+
+	backgroundAudio.play().catch((error) => {
+		if (error.name !== 'NotAllowedError') {
+			console.error('Unable to play the background music:', error);
+		}
+	});
+}
+
+function startBackgroundMusicAfterInteraction() {
+	document.removeEventListener('pointerdown', startBackgroundMusicAfterInteraction);
+	document.removeEventListener('keydown', startBackgroundMusicAfterInteraction);
+	playBackgroundMusic();
+}
+
 function playGameStartSound() {
 	if (!soundOn) {
 		return;
 	}
 
 	if (!gameStartAudio) {
-		gameStartAudio = new Audio('Sound FX/game_start.mp3');
+		gameStartAudio = createSoundEffectAudio('Sound FX/game_start.mp3');
 	}
 	gameStartAudio.currentTime = 0;
 	gameStartAudio.play().catch((error) => {
@@ -867,7 +902,15 @@ function openSettings() {
 		title: 'Menu',
 		copy: `Sound is ${soundOn ? 'on' : 'off'}. Your current game is saved automatically.`,
 		actions: [
-			{ label: soundOn ? 'Turn sound off' : 'Turn sound on', style: 'outline', action: () => { soundOn = !soundOn; openSettings(); } },
+			{ label: soundOn ? 'Turn sound off' : 'Turn sound on', style: 'outline', action: () => {
+				soundOn = !soundOn;
+				if (soundOn) {
+					playBackgroundMusic();
+				} else if (backgroundAudio) {
+					backgroundAudio.pause();
+				}
+				openSettings();
+			} },
 			...(state && state.active ? [{ label: 'Resume game', style: 'primary', action: () => { overlay.classList.add('hidden'); startTimer(); } }] : []),
 			{ label: 'Home screen', style: 'text', action: showHome }
 		]
@@ -991,4 +1034,7 @@ document.querySelector('#overlay-close').addEventListener('click', () => {
 	}
 });
 
+document.addEventListener('pointerdown', startBackgroundMusicAfterInteraction);
+document.addEventListener('keydown', startBackgroundMusicAfterInteraction);
+playBackgroundMusic();
 updateHomeActions();
