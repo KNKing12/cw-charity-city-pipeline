@@ -406,28 +406,23 @@ textarea {
 	max-width: 100%;
 	aspect-ratio: 1;
 	margin-inline: auto;
-	border: 1px solid #ffc907;
 	border-radius: 0.5rem;
-	background: rgb(255 255 255 / 88%);
+	background-color: transparent;
+	background-position: center;
+	background-repeat: no-repeat;
+	background-size: 100% 100%;
 	box-shadow: 0 0.5rem 1.5rem rgb(35 22 36 / 18%);
 }
 
 .board-cell {
 	min-width: 0;
 	aspect-ratio: 1;
-	border: 1px solid #ffc907;
-	background: rgb(255 255 255 / 82%);
-}
-
-.board-cell.flowing {
-	background: rgb(255 255 255 / 92%);
+	background: transparent;
 }
 
 .board-cell.obstacle {
 	display: grid;
 	place-items: center;
-	border: 1px solid #ffc907;
-	background: rgb(255 255 255 / 82%);
 }
 
 .obstacle-art {
@@ -443,7 +438,16 @@ textarea {
 .board-cell.occupied {
 	display: grid;
 	place-items: center;
-	border: 0;
+	background-color: transparent;
+	z-index: 1;
+}
+
+.board-cell.occupied.flowing {
+	background-color: transparent;
+}
+
+.board-cell.occupied .pipe-image-frame {
+	inset: 0;
 }
 
 .place-button {
@@ -567,48 +571,36 @@ textarea {
 	min-height: 0;
 }
 
-.pipe-art {
+.pipe-image-frame {
+	position: absolute;
+	inset: 0;
+	transform: rotate(var(--pipe-rotation));
+	transform-origin: center;
+}
+
+.pipe-image {
+	position: absolute;
+	top: 50%;
+	left: 50%;
 	display: block;
 	width: 100%;
 	height: 100%;
+	object-fit: contain;
+	transform: translate(-50%, -50%) scale(var(--pipe-scale-x), var(--pipe-scale-y));
+	transform-origin: center;
 }
 
-.pipe-outline,
-.pipe-metal,
-.pipe-interior,
-.pipe-highlight {
-	fill: none;
-	stroke-linecap: butt;
-	stroke-linejoin: round;
+.pipe-image.straight,
+.pipe-image.elbow,
+.pipe-image.tee,
+.pipe-image.cross {
+	--pipe-scale-x: 1;
+	--pipe-scale-y: 1;
 }
 
-.pipe-outline {
-	stroke: #68441f;
-	stroke-width: 40;
-}
-
-.pipe-metal {
-	stroke: #d69b31;
-	stroke-width: 34;
-}
-
-.pipe-interior {
-	stroke: #292d2b;
-	stroke-width: 22;
-}
-
-.pipe-highlight {
-	stroke: #f2d47c;
-	stroke-width: 3;
-	opacity: 0.9;
-}
-
-.board-cell.flowing .pipe-interior {
-	stroke: #2e9df7;
-}
-
-.board-cell.flowing .pipe-highlight {
-	stroke: #b6edff;
+.piece-preview-button .pipe-image {
+	--pipe-scale-x: 0.9;
+	--pipe-scale-y: 0.9;
 }
 
 .rotate-hint {
@@ -764,6 +756,11 @@ textarea {
 	margin: 0.75rem 0 0;
 	padding-left: 1.5rem;
 	line-height: 1.45;
+}
+
+.menu-donate-link {
+	width: 100%;
+	margin-top: 1rem;
 }
 
 .overlay-actions {

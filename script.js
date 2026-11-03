@@ -22,17 +22,28 @@ const baseConnections = {
 	tee: ['N', 'E', 'W'],
 	cross: ['N', 'E', 'S', 'W']
 };
-const pipePathByDirection = {
-	N: 'M 50 50 V 0',
-	E: 'M 50 50 H 100',
-	S: 'M 50 50 V 100',
-	W: 'M 50 50 H 0'
+const pipeImageFiles = {
+	straight: { dry: 'straight_dry.png', flowing: 'straight_flowing.png' },
+	elbow: { dry: 'elbow_dry.png', flowing: 'elbow_flowing.png' },
+	tee: { dry: 'tee_dry.png', flowing: 'tee_flowing.png' },
+	cross: { dry: 'cross_dry.png', flowing: 'cross_flowing.png' }
+};
+const pipeImageRotations = {
+	straight: 1,
+	elbow: 2,
+	tee: 2,
+	cross: 0
 };
 const storageKey = 'charity-city-pipeline-save';
 const cityEndpointImages = {
 	'The Pool': 'img/Tropical Village Fountain Playground.png',
 	'The Spring': 'img/spring.png',
 	'The Well': 'img/well.png'
+};
+const boardBackgroundImages = {
+	'The Pool': 'img/group_backgrounds/the_pool_background.png',
+	'The Spring': 'img/group_backgrounds/the_spring_background.png',
+	'The Well': 'img/group_backgrounds/the_well_background.png'
 };
 const startPointImage = 'img/start_well.png';
 const obstacleImages = [
@@ -203,18 +214,13 @@ function getCurrentConnections(piece) {
 	return connections;
 }
 
-function getPipeSvgMarkup(piece) {
-	const pipePath = getCurrentConnections(piece)
-		.map((direction) => pipePathByDirection[direction])
-		.join(' ');
-
+function getPipeImageMarkup(piece, isFlowing = false) {
+	const imageFile = pipeImageFiles[piece.type][isFlowing ? 'flowing' : 'dry'];
+	const rotation = (piece.rotation + pipeImageRotations[piece.type]) % 4 * 90;
 	return `
-		<svg class="pipe-art" viewBox="0 0 100 100" aria-hidden="true">
-			<path class="pipe-outline" d="${pipePath}"></path>
-			<path class="pipe-metal" d="${pipePath}"></path>
-			<path class="pipe-interior" d="${pipePath}"></path>
-			<path class="pipe-highlight" d="${pipePath}"></path>
-		</svg>`;
+		<span class="pipe-image-frame" style="--pipe-rotation: ${rotation}deg">
+			<img class="pipe-image ${piece.type}" src="img/Floral_Pipes_Corrected/${imageFile}" alt="">
+		</span>`;
 }
 
 function createNewGame(mode) {
@@ -377,6 +383,7 @@ function renderBoard() {
 	gameBoard.style.gridRow = `1 / span ${boardSize}`;
 	gameBoard.style.gridTemplateColumns = `repeat(${boardSize}, minmax(0, 1fr))`;
 	gameBoard.style.gridTemplateRows = `repeat(${boardSize}, minmax(0, 1fr))`;
+	gameBoard.style.backgroundImage = `url("${boardBackgroundImages[getStageName(state.level)]}")`;
 	gameBoard.setAttribute('aria-label', `${boardSize} by ${boardSize} pipe grid`);
 	document.querySelector('.source-marker .endpoint-image').src = startPointImage;
 	document.querySelector('.city-marker .endpoint-image').src = cityEndpointImages[getStageName(state.level)];
@@ -407,15 +414,16 @@ function renderBoard() {
 			cell.querySelector('.obstacle-art').style.backgroundImage = `url("img/obstacles/${obstacle.image}")`;
 		} else if (piece) {
 			cell.classList.add('occupied');
-			if (flowingCells.has(cellIndex)) {
+			const isFlowing = flowingCells.has(cellIndex);
+			if (isFlowing) {
 				cell.classList.add('flowing');
 			}
 			cell.innerHTML = `
 				<span class="placed-pipe ${piece.type}" role="img" aria-label="${piece.type} pipe">
-					${getPipeSvgMarkup(piece)}
+					${getPipeImageMarkup(piece, isFlowing)}
 				</span>`;
 		} else {
-			cell.innerHTML = `<button class="place-button" type="button" data-cell="${cellIndex}" aria-label="Place pipe in row ${row + 1}, column ${column + 1}"><span aria-hidden="true">+</span></button>`;
+			cell.innerHTML = `<button class="place-button" type="button" data-cell="${cellIndex}" aria-label="Place pipe in row ${row + 1}, column ${column + 1}"></button>`;
 		}
 
 		gameBoard.append(cell);
@@ -515,7 +523,7 @@ function renderPreview() {
 	}
 
 	previewShape.className = 'piece-shape';
-	previewShape.innerHTML = getPipeSvgMarkup(state.currentPiece);
+	previewShape.innerHTML = getPipeImageMarkup(state.currentPiece);
 	const pieceDetails = {
 		straight: 'Straight pipe · 12 pts',
 		elbow: 'Elbow pipe · 20 pts',
