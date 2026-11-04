@@ -416,6 +416,7 @@ function renderBoard() {
 	gameBoard.innerHTML = '';
 	boardWrap.style.aspectRatio = `${boardSize + 2} / ${boardSize}`;
 	boardWrap.style.maxWidth = `${34 * (boardSize + 2) / boardSize}rem`;
+	boardWrap.style.setProperty('--board-min-width', `${(boardSize + 2) * 24}px`);
 	boardWrap.style.gridTemplateColumns = `repeat(${boardSize + 2}, minmax(0, 1fr))`;
 	boardWrap.style.gridTemplateRows = `repeat(${boardSize}, minmax(0, 1fr))`;
 	gameBoard.style.gridColumn = `2 / span ${boardSize}`;

@@ -24,6 +24,7 @@ body {
 	display: flex;
 	min-height: 100vh;
 	min-height: 100svh;
+	min-height: 100dvh;
 	margin: 0;
 	background: #ffc907;
 	color: #000;
@@ -54,9 +55,11 @@ body.game-active::before {
 	width: min(100%, 90rem);
 	min-height: 100vh;
 	min-height: 100svh;
+	min-height: 100dvh;
 	flex-direction: column;
 	margin-inline: auto;
-	padding-inline: clamp(1rem, 4vw, 3rem);
+	padding-inline: max(clamp(1rem, 4vw, 3rem), env(safe-area-inset-left));
+	padding-right: max(clamp(1rem, 4vw, 3rem), env(safe-area-inset-right));
 }
 
 main {
@@ -705,7 +708,8 @@ textarea {
 	z-index: 10;
 	display: grid;
 	place-items: center;
-	padding: 1rem;
+	padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+		max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
 	background: rgb(18 43 48 / 55%);
 }
 
@@ -766,6 +770,7 @@ textarea {
 .group-transition .transition-image {
 	max-height: calc(100vh - 2rem);
 	max-height: calc(100dvh - 2rem);
+	max-width: calc(100vw - 2rem);
 }
 
 .group-transition.transition-playing {
@@ -893,7 +898,8 @@ textarea {
 
 @media (max-width: 640px) {
 	.app-shell {
-		padding-inline: clamp(0.75rem, 4vw, 1rem);
+		padding-left: max(clamp(0.75rem, 4vw, 1rem), env(safe-area-inset-left));
+		padding-right: max(clamp(0.75rem, 4vw, 1rem), env(safe-area-inset-right));
 	}
 
 	.home-screen {
@@ -980,6 +986,13 @@ textarea {
 
 	.board-wrap {
 		width: 100%;
+		min-width: var(--board-min-width);
+	}
+
+	.board-panel {
+		overflow-x: auto;
+		overscroll-behavior-inline: contain;
+		-webkit-overflow-scrolling: touch;
 	}
 
 	.board-legend {
@@ -987,7 +1000,10 @@ textarea {
 	}
 
 	.overlay {
-		padding: clamp(0.5rem, 3vw, 1rem);
+		padding: max(clamp(0.5rem, 3vw, 1rem), env(safe-area-inset-top))
+			max(clamp(0.5rem, 3vw, 1rem), env(safe-area-inset-right))
+			max(clamp(0.5rem, 3vw, 1rem), env(safe-area-inset-bottom))
+			max(clamp(0.5rem, 3vw, 1rem), env(safe-area-inset-left));
 	}
 
 	.overlay-card {
@@ -1003,6 +1019,60 @@ textarea {
 
 	.footer-logo {
 		width: clamp(4.5rem, 20vw, 6rem);
+	}
+}
+
+@media (max-width: 360px) {
+	.app-shell {
+		padding-left: max(0.5rem, env(safe-area-inset-left));
+		padding-right: max(0.5rem, env(safe-area-inset-right));
+	}
+
+	.status-row {
+		gap: 0.3rem;
+	}
+
+	.status-note {
+		overflow-wrap: anywhere;
+	}
+
+	.game-heading h1 {
+		font-size: clamp(1.25rem, 7vw, 1.5rem);
+	}
+}
+
+@media (max-height: 540px) {
+	.home-screen {
+		min-height: auto;
+		padding-top: 0.75rem;
+		padding-bottom: 0.75rem;
+	}
+
+	.home-copy {
+		transform: none;
+	}
+
+	.topbar {
+		min-height: 3.25rem;
+	}
+
+	.site-footer {
+		min-height: 2.75rem;
+	}
+
+	.overlay {
+		overflow-y: auto;
+		align-items: start;
+	}
+
+	.overlay-card {
+		max-height: calc(100vh - 1rem);
+		max-height: calc(100dvh - 1rem);
+	}
+
+	.group-transition .transition-image {
+		max-height: calc(100vh - 1rem);
+		max-height: calc(100dvh - 1rem);
 	}
 }
 
