@@ -736,6 +736,54 @@ textarea {
 	line-height: 1.5;
 }
 
+.overlay-card.group-complete {
+	width: min(100%, 46rem);
+}
+
+.transition-image {
+	display: block;
+	width: 100%;
+	max-height: 60vh;
+	max-height: 60dvh;
+	object-fit: contain;
+}
+
+.overlay-card.group-transition {
+	padding: 0;
+	border: none;
+	background: transparent;
+	opacity: 0;
+}
+
+.group-transition .overlay-close,
+.group-transition .eyebrow,
+.group-transition h2,
+.group-transition .overlay-copy,
+.group-transition .overlay-actions {
+	display: none;
+}
+
+.group-transition .transition-image {
+	max-height: calc(100vh - 2rem);
+	max-height: calc(100dvh - 2rem);
+}
+
+.group-transition.transition-playing {
+	animation: group-transition-fade 4s linear forwards;
+}
+
+@keyframes group-transition-fade {
+	0%, 100% { opacity: 0; }
+	25%, 75% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.group-transition.transition-playing {
+		animation: none;
+		opacity: 1;
+	}
+}
+
 .menu-rules {
 	margin-top: 1.25rem;
 	padding: 1rem;

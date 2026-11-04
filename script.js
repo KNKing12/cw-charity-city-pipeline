@@ -45,6 +45,11 @@ const boardBackgroundImages = {
 	'The Spring': 'img/group_backgrounds/the_spring_background.png',
 	'The Well': 'img/group_backgrounds/the_well_background.png'
 };
+const groupCompletionImages = {
+	'The Pool': 'img/transition_screens/the_pool_complete.png',
+	'The Spring': 'img/transition_screens/the_spring_complete.png',
+	'The Well': 'img/transition_screens/the_well_complete.png'
+};
 const quickSoundThresholds = {
 	'The Pool': 30,
 	'The Spring': 40,
@@ -88,6 +93,7 @@ const overlayEyebrow = document.querySelector('#overlay-eyebrow');
 const overlayCopy = document.querySelector('#overlay-copy');
 const overlayActions = document.querySelector('#overlay-actions');
 const overlaySymbol = document.querySelector('#overlay-symbol');
+const transitionImage = document.querySelector('#transition-image');
 const menuRules = document.querySelector('#menu-rules');
 const previewShape = document.querySelector('#preview-shape');
 const piecePreviewButton = document.querySelector('#piece-preview-button');
@@ -99,6 +105,7 @@ let state = null;
 let selectedMode = 'timed';
 let timerInterval = null;
 let toastTimeout = null;
+let groupTransitionTimeout = null;
 let soundOn = true;
 let backgroundAudio = null;
 let gameStartAudio = null;
@@ -188,12 +195,25 @@ function getObstacleCellIndices(obstacles = state.obstacles, boardSize = state.b
 	return cells;
 }
 
-function makePiece(level, pieceIndex, recentPieceTypes = []) {
+function getBranchingPieceLimit(level) {
+	if (level === 1) {
+		return 0;
+	}
+	if (level === 2) {
+		return 2;
+	}
+	return Math.min(14, 3 + Math.floor((level - 3) / 2));
+}
+
+function makePiece(level, pieceIndex, recentPieceTypes = [], placedPieces = []) {
 	const availableTypes = ['straight', 'elbow'];
-	if (level >= 3) {
+	const branchingPieceLimit = getBranchingPieceLimit(level);
+	const teeCount = placedPieces.filter((piece) => piece && piece.type === 'tee').length;
+	const crossCount = placedPieces.filter((piece) => piece && piece.type === 'cross').length;
+	if (teeCount < branchingPieceLimit) {
 		availableTypes.push('tee');
 	}
-	if (level >= 5) {
+	if (crossCount < branchingPieceLimit) {
 		availableTypes.push('cross');
 	}
 
@@ -265,7 +285,7 @@ function startLevel() {
 	state.board = Array(state.boardSize * state.boardSize).fill(null);
 	state.pieceIndex = 0;
 	state.recentPieceTypes = [];
-	state.currentPiece = makePiece(state.level, state.pieceIndex, state.recentPieceTypes);
+	state.currentPiece = makePiece(state.level, state.pieceIndex, state.recentPieceTypes, state.board);
 	state.recentPieceTypes.push(state.currentPiece.type);
 	state.pendingPiece = false;
 	state.timeLeft = getLevelTimeLimit(state.level);
@@ -301,6 +321,7 @@ function showGame() {
 
 function showHome() {
 	clearInterval(timerInterval);
+	stopGroupTransition();
 	overlay.classList.add('hidden');
 	document.body.classList.remove('game-active');
 	gameScreen.classList.add('hidden');
@@ -629,7 +650,7 @@ function continueToNextPiece() {
 		return;
 	}
 
-	state.currentPiece = makePiece(state.level, state.pieceIndex, state.recentPieceTypes);
+	state.currentPiece = makePiece(state.level, state.pieceIndex, state.recentPieceTypes, state.board);
 	state.recentPieceTypes.push(state.currentPiece.type);
 	state.recentPieceTypes = state.recentPieceTypes.slice(-3);
 	renderGame();
@@ -655,27 +676,73 @@ function completeLevel(pipeSoundPlayback = Promise.resolve()) {
 	});
 
 	if (state.level === 21) {
-		showCampaignComplete();
+		showGroupTransition(state.level, showCampaignComplete);
 		return;
 	}
 
 	const nextLevel = Math.min(21, state.level + 1);
 	const changedStage = getStageName(nextLevel) !== getStageName(state.level);
-	const stageMessage = changedStage
-		? `Welcome to ${getStageName(nextLevel)} — ${getStageDifficulty(nextLevel).toLowerCase()} difficulty.`
-		: '';
+	if (changedStage) {
+		showGroupTransition(state.level, () => {
+			stopGroupTransition();
+			overlay.classList.add('hidden');
+			state.level = nextLevel;
+			startLevel();
+		});
+		return;
+	}
 
 	showOverlay({
-		kind: changedStage ? 'map' : 'level-up',
+		kind: 'level-up',
 		symbol: '✦',
-		eyebrow: changedStage ? 'A new challenge begins' : 'A new connection',
+		eyebrow: 'A new connection',
 		title: 'Level Up',
-		copy: `${stageMessage} Level ${nextLevel} is ready.`,
+		copy: `Level ${nextLevel} is ready.`,
 		actions: [
 			{ label: `Start level ${nextLevel}`, style: 'primary', action: () => { state.level = nextLevel; startLevel(); overlay.classList.add('hidden'); } },
 			{ label: 'Home screen', style: 'text', action: showHome }
 		]
 	});
+}
+
+function stopGroupTransition() {
+	clearTimeout(groupTransitionTimeout);
+	groupTransitionTimeout = null;
+	transitionImage.onload = null;
+	transitionImage.onerror = null;
+}
+
+function showGroupTransition(level, onComplete) {
+	const stage = getStageName(level);
+	showOverlay({
+		kind: 'group-transition',
+		symbol: '',
+		eyebrow: '',
+		title: `${stage} complete!`,
+		image: groupCompletionImages[stage],
+		copy: '',
+		actions: []
+	});
+
+	// Wait for the image so its full four-second transition is visible.
+	const startTransition = () => {
+		transitionImage.onload = null;
+		overlayCard.classList.add('transition-playing');
+		groupTransitionTimeout = setTimeout(onComplete, 4000);
+	};
+	transitionImage.onload = startTransition;
+	transitionImage.onerror = () => {
+		console.error(`Unable to load the group transition image: ${groupCompletionImages[stage]}`);
+		showToast('The completion image could not load. Continuing your game.');
+		onComplete();
+	};
+	if (transitionImage.complete) {
+		if (transitionImage.naturalWidth > 0) {
+			startTransition();
+		} else {
+			transitionImage.onerror();
+		}
+	}
 }
 
 function showCampaignComplete() {
@@ -711,8 +778,20 @@ function endGame(message) {
 }
 
 function showOverlay(options) {
+	stopGroupTransition();
 	overlayCard.className = `overlay-card ${options.kind}`;
+	overlayCard.classList.toggle('group-complete', Boolean(options.image));
 	menuRules.classList.toggle('hidden', options.kind !== 'settings');
+	// Clear the artwork for menus and ordinary level-completion dialogs.
+	transitionImage.classList.toggle('hidden', !options.image);
+	if (options.image) {
+		transitionImage.src = options.image;
+		transitionImage.alt = options.title;
+	} else {
+		transitionImage.removeAttribute('src');
+		transitionImage.alt = '';
+	}
+	overlaySymbol.classList.toggle('hidden', Boolean(options.image));
 	overlaySymbol.textContent = options.symbol;
 	overlayEyebrow.textContent = options.eyebrow;
 	overlayTitle.textContent = options.title;
